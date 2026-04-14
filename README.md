@@ -63,7 +63,15 @@ npm run server
 npm run dev
 ```
 
-### 3. Environment Configuration
+### 3. Usage Guide (Operational Flow)
+For a successful demonstration, always follow these steps in order:
+1.  **Sign In**: Use test credentials (e.g., `samsung@factory.com`).
+2.  **Connect Wallet**: Click **"Connect Wallet"** in the top navbar. 
+    *   *Critical:* Do this **before** submitting any data.
+3.  **Perform Action**: Fill out a form (e.g., Register Product) and click Submit.
+4.  **Confirm**: A MetaMask popup will appear. Click **Confirm** to pay.
+
+### 4. Environment Configuration
 Create a `.env` file in the root directory:
 ```env
 ALCHEMY_RPC_URL=your_alchemy_url
