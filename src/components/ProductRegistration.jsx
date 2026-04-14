@@ -2,18 +2,24 @@ import React, { useState } from 'react';
 import { Package, CheckCircle, Copy, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { registerProduct as apiRegisterProduct, getContract } from '../services/api';
+import { ethers } from 'ethers';
 
 const CITIES = ['Chennai', 'Bengaluru', 'Hyderabad', 'Mumbai', 'Delhi', 'Kolkata', 'Pune', 'Ahmedabad', 'Jaipur', 'Lucknow'];
 
 export default function ProductRegistration({ user }) {
-  const [form, setForm] = useState({ productId: '', brand: '', city: '', ownerName: user?.name || '' });
+  const [form, setForm] = useState({ productId: '', brand: '', city: '', ownerAddress: user?.address || '' });
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.productId || !form.brand || !form.city || !form.ownerName) {
+    if (!form.productId || !form.brand || !form.city || !form.ownerAddress) {
       toast.error('Please fill all fields');
+      return;
+    }
+
+    if (!ethers.isAddress(form.ownerAddress)) {
+      toast.error('Invalid Owner Wallet Address. Must start with 0x...');
       return;
     }
 
@@ -28,7 +34,7 @@ export default function ProductRegistration({ user }) {
         form.productId,
         form.brand,
         form.city,
-        form.ownerName
+        form.ownerAddress
       );
       
       toast.loading('Mining block...', { id: 'tx' });
@@ -115,13 +121,12 @@ export default function ProductRegistration({ user }) {
                 </select>
               </div>
               <div className="form-group">
-                <label className="form-label">Owner Name</label>
+                <label className="form-label">Owner Wallet Address</label>
                 <input
                   className="form-input"
-                  placeholder="e.g., Deepika Leelakumar"
-                  value={form.ownerName}
-                  readOnly
-                  style={{ background: 'var(--accent-dim)', opacity: 0.8 }}
+                  placeholder="0x... (Recipient's Wallet Address)"
+                  value={form.ownerAddress}
+                  onChange={e => setForm({ ...form, ownerAddress: e.target.value })}
                 />
               </div>
               <button className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>

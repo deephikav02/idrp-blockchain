@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ArrowRightLeft, CheckCircle, Copy, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { transferOwnership as apiTransferOwnership, getContract } from '../services/api';
+import { ethers } from 'ethers';
 
 export default function OwnershipTransfer({ user }) {
   const [form, setForm] = useState({ productId: '', newOwner: '' });
@@ -12,6 +13,11 @@ export default function OwnershipTransfer({ user }) {
     e.preventDefault();
     if (!form.productId || !form.newOwner) {
       toast.error('Please fill all fields');
+      return;
+    }
+
+    if (!ethers.isAddress(form.newOwner)) {
+      toast.error('Invalid Ethereum address. Must start with 0x...');
       return;
     }
 
@@ -80,10 +86,10 @@ export default function OwnershipTransfer({ user }) {
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">New Owner Name</label>
+                <label className="form-label">New Owner Wallet Address</label>
                 <input
                   className="form-input"
-                  placeholder="Enter new owner's name"
+                  placeholder="0x... (Recipient's Ethereum Address)"
                   value={form.newOwner}
                   onChange={e => setForm({ ...form, newOwner: e.target.value })}
                 />
