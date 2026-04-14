@@ -56,6 +56,22 @@ If you see "Permission Denied" when pushing code:
 
 ---
 
+## 🛠️ 6. TROUBLESHOOTING: "INVALID ENS NAME" ERROR
+
+### 6.1 The Problem
+If you see an error saying **"Invalid ENS Name"** or **"Disallowed Character"**, it means you typed a **Name** (like "John Doe") into a field that requires a **Blockchain Address** (like `0x58...`).
+
+### 6.2 The Logic
+The Ethereum blockchain doesn't understand names like "John" directly. It only understands 42-character hex addresses. 
+-   **Old UI**: Was letting you type names, which confused the system.
+-   **The Fix**: I have updated the forms to strictly require a `0x` wallet address. I also added **Validation**, so if you type a name now, the app will gently remind you to "Enter a valid wallet address."
+
+### 6.3 Lesson for the Viva/Demo
+If your professor asks why we use addresses instead of names:
+> "We use Wallet Addresses because they are the unique, cryptographic identifiers on the Ethereum network. While the off-chain database stores the user's name for the UI, the Smart Contract requires the address to verify permissions and enforce ownership security."
+
+---
+
 ## 🏁 5. SUMMARY FOR PRESENTATION
 When your professors ask you **"How does this work?"**, remember these three keywords:
 1.  **Transparency**: Everything is public and verifiable on Sepolia.
