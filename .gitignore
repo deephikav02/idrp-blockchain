@@ -1,0 +1,14 @@
+node_modules
+dist
+.env
+.dev.vars
+.pnp
+.pnp.js
+coverage
+*.local
+artifacts
+cache
+typechain
+typechain-types
+/*.docx
+.DS_Store
