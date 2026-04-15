@@ -96,22 +96,6 @@ export function initDatabase() {
     console.log('✅ Seeded 3 users.');
   }
 
-  // Seed demo products if empty (survives Render redeploys)
-  const productCount = db.prepare('SELECT COUNT(*) as count FROM products').get().count;
-  if (productCount === 0) {
-    console.log('🌱 Seeding demo products...');
-    const seedProducts = [
-      { product_id: 'PROD-2025-001', brand: 'Samsung', city: 'Chennai', owner_name: 'Samsung India', tx_hash: '0x64741f548bfb9198606b3cecd3e2bac693653aa3099bec840c308cfdcaebd7e6', block_number: 18000001 },
-      { product_id: 'PROD-2025-002', brand: 'Apple', city: 'Mumbai', owner_name: 'Samsung India', tx_hash: '0x9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a', block_number: 18000002 },
-      { product_id: 'PROD-2025-003', brand: 'Xiaomi', city: 'Bengaluru', owner_name: 'Samsung India', tx_hash: '0x1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b', block_number: 18000003 },
-    ];
-    const insertProduct = db.prepare('INSERT OR IGNORE INTO products (product_id, brand, city, owner_name, tx_hash, block_number) VALUES (?, ?, ?, ?, ?, ?)');
-    for (const p of seedProducts) {
-      insertProduct.run(p.product_id, p.brand, p.city, p.owner_name, p.tx_hash, p.block_number);
-    }
-    console.log('✅ Seeded 3 demo products.');
-  }
-
   console.log('✅ Database initialized at', DB_PATH);
   return db;
 }
