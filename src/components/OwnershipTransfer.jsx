@@ -4,10 +4,24 @@ import toast from 'react-hot-toast';
 import { transferOwnership as apiTransferOwnership, getContract } from '../services/api';
 import { ethers } from 'ethers';
 
+// Known users in the system — name + wallet address mapping
+const KNOWN_USERS = [
+  { name: 'Deepika Leelakumar (Consumer)', address: '0x3333333333333333333333333333333333333333' },
+  { name: 'Samsung India (Manufacturer)', address: '0x2222222222222222222222222222222222222222' },
+  { name: 'System Admin', address: '0x1111111111111111111111111111111111111111' },
+];
+
 export default function OwnershipTransfer({ user }) {
   const [form, setForm] = useState({ productId: '', newOwner: '' });
+  const [selectedUser, setSelectedUser] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
+
+  const handleUserSelect = (e) => {
+    const addr = e.target.value;
+    setSelectedUser(addr);
+    setForm({ ...form, newOwner: addr });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -32,10 +46,12 @@ export default function OwnershipTransfer({ user }) {
       const receipt = await tx.wait();
       toast.dismiss('tx');
 
+      const displayName = KNOWN_USERS.find(u => u.address.toLowerCase() === form.newOwner.toLowerCase())?.name || form.newOwner;
+
       setResult({
         productId: form.productId,
         fromOwner: user?.address || 'Current Owner',
-        toOwner: form.newOwner,
+        toOwner: displayName,
         transactionHash: receipt.hash,
         blockNumber: receipt.blockNumber,
         gasUsed: Number(receipt.gasUsed)
@@ -58,6 +74,7 @@ export default function OwnershipTransfer({ user }) {
 
   const reset = () => {
     setForm({ productId: '', newOwner: '' });
+    setSelectedUser('');
     setResult(null);
   };
 
@@ -80,19 +97,32 @@ export default function OwnershipTransfer({ user }) {
                 <label className="form-label">Product ID</label>
                 <input
                   className="form-input"
-                  placeholder="Enter product ID to transfer"
+                  placeholder="Enter product ID to transfer (e.g., PROD-2025-001)"
                   value={form.productId}
                   onChange={e => setForm({ ...form, productId: e.target.value })}
                 />
               </div>
               <div className="form-group">
+                <label className="form-label">Transfer To (Select Registered User)</label>
+                <select className="form-input form-select" value={selectedUser} onChange={handleUserSelect}>
+                  <option value="">-- Select a registered user --</option>
+                  {KNOWN_USERS.map(u => (
+                    <option key={u.address} value={u.address}>{u.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
                 <label className="form-label">New Owner Wallet Address</label>
                 <input
                   className="form-input"
-                  placeholder="0x... (Recipient's Ethereum Address)"
+                  placeholder="0x... (auto-filled when you select above)"
                   value={form.newOwner}
                   onChange={e => setForm({ ...form, newOwner: e.target.value })}
+                  style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}
                 />
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px' }}>
+                  💡 Select from dropdown above — the address fills itself! Or paste any <code>0x...</code> address manually.
+                </p>
               </div>
 
               <div style={{
