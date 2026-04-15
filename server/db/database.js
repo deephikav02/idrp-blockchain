@@ -85,7 +85,8 @@ export function initDatabase() {
     const seedUsers = [
       { email: 'admin@idrp.in', pass: 'admin123', name: 'System Admin', role: 'Admin', addr: '0x1111111111111111111111111111111111111111' },
       { email: 'samsung@factory.com', pass: 'samsung123', name: 'Samsung India', role: 'Manufacturer', addr: '0x2222222222222222222222222222222222222222' },
-      { email: 'deepika@user.com', pass: 'deepika123', name: 'Deepika Leelakumar', role: 'Consumer', addr: '0x3333333333333333333333333333333333333333' }
+      { email: 'deepika@user.com', pass: 'deepika123', name: 'Deepika Leelakumar', role: 'Consumer', addr: '0x3333333333333333333333333333333333333333' },
+      { email: 'icare@repair.com', pass: 'icare123', name: 'iCare Service Center', role: 'RepairCenter', addr: '0x4444444444444444444444444444444444444444' }
     ];
 
     const insert = db.prepare('INSERT INTO users (email, password, name, role, address) VALUES (?, ?, ?, ?, ?)');
