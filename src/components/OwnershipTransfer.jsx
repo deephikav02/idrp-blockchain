@@ -1,82 +1,100 @@
-import React, { useState } from 'react';
-import { ArrowRightLeft, CheckCircle, Copy, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { ArrowRightLeft, CheckCircle, Copy, Loader2, Search, User } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { transferOwnership as apiTransferOwnership, getContract } from '../services/api';
+import { getContract } from '../services/api';
 import { ethers } from 'ethers';
+import axios from 'axios';
 
-// Known users in the system — name + wallet address mapping
-const KNOWN_USERS = [
-  { name: 'Deepika Leelakumar (Consumer)', address: '0x3333333333333333333333333333333333333333' },
-  { name: 'Samsung India (Manufacturer)', address: '0x2222222222222222222222222222222222222222' },
-  { name: 'System Admin', address: '0x1111111111111111111111111111111111111111' },
-];
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3001/api';
 
 export default function OwnershipTransfer({ user }) {
-  const [form, setForm] = useState({ productId: '', newOwner: '' });
-  const [selectedUser, setSelectedUser] = useState('');
+  const [productId, setProductId] = useState('');
+  const [query, setQuery] = useState('');           // what the user types
+  const [suggestions, setSuggestions] = useState([]); // filtered results
+  const [allUsers, setAllUsers] = useState([]);
+  const [selectedAddress, setSelectedAddress] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
+  const dropdownRef = useRef(null);
 
-  const handleUserSelect = (e) => {
-    const addr = e.target.value;
-    setSelectedUser(addr);
-    setForm({ ...form, newOwner: addr });
+  // Fetch all registered users on mount
+  useEffect(() => {
+    axios.get(`${API_BASE}/auth/users`)
+      .then(res => setAllUsers(res.data.data || []))
+      .catch(() => {});
+  }, []);
+
+  // Filter users as user types
+  useEffect(() => {
+    if (!query.trim()) {
+      setSuggestions([]);
+      setShowDropdown(false);
+      return;
+    }
+    const q = query.toLowerCase();
+    const filtered = allUsers.filter(u =>
+      u.name.toLowerCase().includes(q) ||
+      (u.address && u.address.toLowerCase().includes(q)) ||
+      u.role.toLowerCase().includes(q)
+    );
+    setSuggestions(filtered);
+    setShowDropdown(true);
+  }, [query, allUsers]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const handleSelect = (u) => {
+    setQuery(`${u.name} — ${u.address}`);
+    setSelectedAddress(u.address);
+    setShowDropdown(false);
   };
+
+  const truncate = (addr) => addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : '';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.productId || !form.newOwner) {
-      toast.error('Please fill all fields');
-      return;
-    }
-
-    if (!ethers.isAddress(form.newOwner)) {
-      toast.error('Invalid Ethereum address. Must start with 0x...');
-      return;
-    }
+    if (!productId.trim()) { toast.error('Enter a Product ID'); return; }
+    if (!selectedAddress) { toast.error('Please search and select a valid user from the list'); return; }
+    if (!ethers.isAddress(selectedAddress)) { toast.error('Invalid wallet address'); return; }
 
     setLoading(true);
     try {
       const contract = await getContract(true);
-      
       toast.loading('Signing transfer in MetaMask...', { id: 'tx' });
-      const tx = await contract.transferOwnership(form.productId, form.newOwner);
-      
+      const tx = await contract.transferOwnership(productId.trim(), selectedAddress);
       toast.loading('Transferring ownership on-chain...', { id: 'tx' });
       const receipt = await tx.wait();
       toast.dismiss('tx');
 
-      const displayName = KNOWN_USERS.find(u => u.address.toLowerCase() === form.newOwner.toLowerCase())?.name || form.newOwner;
-
       setResult({
-        productId: form.productId,
-        fromOwner: user?.address || 'Current Owner',
-        toOwner: displayName,
+        productId: productId.trim(),
+        fromOwner: user?.name || user?.address || 'Current Owner',
+        toOwner: query,
         transactionHash: receipt.hash,
         blockNumber: receipt.blockNumber,
         gasUsed: Number(receipt.gasUsed)
       });
-      
       toast.success('Ownership transferred!');
     } catch (err) {
       toast.dismiss('tx');
-      const msg = err.reason || err.message || 'Transfer failed';
-      toast.error(msg);
+      toast.error(err.reason || err.message || 'Transfer failed');
     } finally {
       setLoading(false);
     }
   };
 
-  const copyHash = (text) => {
-    navigator.clipboard.writeText(text);
-    toast.success('Copied!');
-  };
-
-  const reset = () => {
-    setForm({ productId: '', newOwner: '' });
-    setSelectedUser('');
-    setResult(null);
-  };
+  const copyHash = (text) => { navigator.clipboard.writeText(text); toast.success('Copied!'); };
+  const reset = () => { setProductId(''); setQuery(''); setSelectedAddress(''); setResult(null); };
 
   return (
     <section id="transfer" className="section">
@@ -93,37 +111,96 @@ export default function OwnershipTransfer({ user }) {
               Transfer Ownership
             </h3>
             <form onSubmit={handleSubmit}>
+              {/* Product ID */}
               <div className="form-group">
                 <label className="form-label">Product ID</label>
                 <input
                   className="form-input"
-                  placeholder="Enter product ID to transfer (e.g., PROD-2025-001)"
-                  value={form.productId}
-                  onChange={e => setForm({ ...form, productId: e.target.value })}
+                  placeholder="e.g., PROD-2025-001"
+                  value={productId}
+                  onChange={e => setProductId(e.target.value)}
                 />
               </div>
-              <div className="form-group">
-                <label className="form-label">Transfer To (Select Registered User)</label>
-                <select className="form-input form-select" value={selectedUser} onChange={handleUserSelect}>
-                  <option value="">-- Select a registered user --</option>
-                  {KNOWN_USERS.map(u => (
-                    <option key={u.address} value={u.address}>{u.name}</option>
-                  ))}
-                </select>
+
+              {/* Searchable user autocomplete */}
+              <div className="form-group" ref={dropdownRef} style={{ position: 'relative' }}>
+                <label className="form-label">New Owner (Search by Name or Address)</label>
+                <div style={{ position: 'relative' }}>
+                  <Search size={16} style={{
+                    position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)',
+                    color: 'var(--text-muted)', pointerEvents: 'none'
+                  }} />
+                  <input
+                    className="form-input"
+                    placeholder="Type a name or 0x address..."
+                    value={query}
+                    onChange={e => { setQuery(e.target.value); setSelectedAddress(''); }}
+                    onFocus={() => { if (suggestions.length > 0) setShowDropdown(true); }}
+                    style={{ paddingLeft: '36px' }}
+                    autoComplete="off"
+                  />
+                </div>
+
+                {/* Dropdown suggestions */}
+                {showDropdown && suggestions.length > 0 && (
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                    background: 'var(--card-bg)', border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-md)', boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                    maxHeight: '220px', overflowY: 'auto'
+                  }}>
+                    {suggestions.map(u => (
+                      <div
+                        key={u.id}
+                        onClick={() => handleSelect(u)}
+                        style={{
+                          padding: '12px 16px', cursor: 'pointer', display: 'flex',
+                          flexDirection: 'column', gap: '2px',
+                          borderBottom: '1px solid var(--border)',
+                          transition: 'background 0.15s'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'var(--accent-dim)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <User size={14} style={{ color: 'var(--accent-primary)' }} />
+                          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{u.name}</span>
+                          <span style={{
+                            fontSize: '0.7rem', padding: '1px 6px', borderRadius: '4px',
+                            background: 'var(--accent-dim)', color: 'var(--accent-primary)'
+                          }}>{u.role}</span>
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace', paddingLeft: '22px' }}>
+                          {u.address}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {showDropdown && query && suggestions.length === 0 && (
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                    background: 'var(--card-bg)', border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-md)', padding: '14px 16px',
+                    color: 'var(--text-muted)', fontSize: '0.85rem'
+                  }}>
+                    No users found matching "<strong>{query}</strong>"
+                  </div>
+                )}
               </div>
-              <div className="form-group">
-                <label className="form-label">New Owner Wallet Address</label>
-                <input
-                  className="form-input"
-                  placeholder="0x... (auto-filled when you select above)"
-                  value={form.newOwner}
-                  onChange={e => setForm({ ...form, newOwner: e.target.value })}
-                  style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}
-                />
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px' }}>
-                  💡 Select from dropdown above — the address fills itself! Or paste any <code>0x...</code> address manually.
-                </p>
-              </div>
+
+              {/* Show selected address */}
+              {selectedAddress && (
+                <div style={{
+                  padding: '10px 14px', background: 'rgba(0,212,255,0.07)',
+                  border: '1px solid rgba(0,212,255,0.3)', borderRadius: 'var(--radius-md)',
+                  marginBottom: '16px', fontFamily: 'monospace', fontSize: '0.8rem',
+                  color: 'var(--accent-primary)', wordBreak: 'break-all'
+                }}>
+                  ✅ Wallet: {selectedAddress}
+                </div>
+              )}
 
               <div style={{
                 padding: '14px 16px', background: 'var(--accent-dim)', borderRadius: 'var(--radius-md)',
@@ -136,11 +213,7 @@ export default function OwnershipTransfer({ user }) {
               </div>
 
               <button className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
-                {loading ? (
-                  <><Loader2 size={18} className="spin-icon" /> Processing Transfer...</>
-                ) : (
-                  <><ArrowRightLeft size={18} /> Transfer Ownership</>
-                )}
+                {loading ? <><Loader2 size={18} className="spin-icon" /> Processing...</> : <><ArrowRightLeft size={18} /> Transfer Ownership</>}
               </button>
             </form>
           </div>
@@ -149,26 +222,19 @@ export default function OwnershipTransfer({ user }) {
             {!result && !loading && (
               <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
                 <ArrowRightLeft size={64} style={{ opacity: 0.15, marginBottom: '16px' }} />
-                <p>Transfer a product's ownership to see the blockchain confirmation here.</p>
+                <p>Search for a user and transfer a product's ownership to see the blockchain confirmation here.</p>
               </div>
             )}
-
             {loading && (
               <div style={{ textAlign: 'center' }}>
                 <div className="spinner" style={{ margin: '0 auto 20px' }} />
                 <p style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>Executing Smart Contract...</p>
               </div>
             )}
-
             {result && (
               <div className="confirmation-panel">
-                <div className="success-icon">
-                  <CheckCircle size={32} />
-                </div>
-                <h3 style={{ textAlign: 'center', marginBottom: '20px', color: 'var(--success)' }}>
-                  Transfer Confirmed ✓
-                </h3>
-
+                <div className="success-icon"><CheckCircle size={32} /></div>
+                <h3 style={{ textAlign: 'center', marginBottom: '20px', color: 'var(--success)' }}>Transfer Confirmed ✓</h3>
                 <div style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px',
                   padding: '20px', marginBottom: '20px', background: 'var(--accent-dim)', borderRadius: 'var(--radius-md)'
@@ -180,41 +246,26 @@ export default function OwnershipTransfer({ user }) {
                   <ArrowRightLeft size={20} style={{ color: 'var(--accent-primary)' }} />
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '4px' }}>TO</div>
-                    <div style={{ fontWeight: 600, color: 'var(--success)' }}>{result.toOwner}</div>
+                    <div style={{ fontWeight: 600, color: 'var(--success)', fontSize: '0.85rem' }}>{result.toOwner}</div>
                   </div>
                 </div>
-
-                <div className="detail-row">
-                  <span className="detail-label">Product</span>
-                  <span className="detail-value">{result.productId}</span>
-                </div>
-                <div className="detail-row">
-                  <span className="detail-label">Block</span>
-                  <span className="detail-value">#{result.blockNumber}</span>
-                </div>
-                <div className="detail-row">
-                  <span className="detail-label">Gas Used</span>
-                  <span className="detail-value">{result.gasUsed?.toLocaleString()} wei</span>
-                </div>
+                <div className="detail-row"><span className="detail-label">Product</span><span className="detail-value">{result.productId}</span></div>
+                <div className="detail-row"><span className="detail-label">Block</span><span className="detail-value">#{result.blockNumber}</span></div>
+                <div className="detail-row"><span className="detail-label">Gas Used</span><span className="detail-value">{result.gasUsed?.toLocaleString()} wei</span></div>
                 <div style={{ marginTop: '16px' }}>
                   <label className="form-label">Transaction Hash</label>
                   <div className="hash-display">
                     <span className="hash-text">{result.transactionHash}</span>
-                    <button className="copy-btn" onClick={() => copyHash(result.transactionHash)}>
-                      <Copy size={14} />
-                    </button>
+                    <button className="copy-btn" onClick={() => copyHash(result.transactionHash)}><Copy size={14} /></button>
                   </div>
                 </div>
-
-                <button className="btn btn-outline" style={{ width: '100%', marginTop: '20px' }} onClick={reset}>
-                  New Transfer
-                </button>
+                <button className="btn btn-outline" style={{ width: '100%', marginTop: '20px' }} onClick={reset}>New Transfer</button>
               </div>
             )}
           </div>
         </div>
       </div>
-      <style>{`.spin-icon { animation: spin 1s linear infinite; }`}</style>
+      <style>{`.spin-icon { animation: spin 1s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </section>
   );
 }
