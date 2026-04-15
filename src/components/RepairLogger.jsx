@@ -67,6 +67,20 @@ export default function RepairLogger({ user }) {
       });
       
       toast.success('Repair logged on blockchain!');
+
+      // Also save to backend database for Verification timeline to work
+      try {
+        await apiLogRepair({
+          productId: form.productId,
+          repairCenter: form.repairCenter || 'Anonymous Shop',
+          partReplaced: form.partReplaced,
+          description: form.description || 'N/A',
+          ipfsHash: 'ipfs-hash-simulated',
+          customerReported: reporterType === 'customer'
+        });
+      } catch (dbErr) {
+        console.warn('Backend sync warning:', dbErr.message);
+      }
     } catch (err) {
       toast.dismiss('tx');
       toast.error(err.reason || err.message || 'Failed to log repair');

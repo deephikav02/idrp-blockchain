@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ArrowRightLeft, CheckCircle, Copy, Loader2, Search, User } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { getContract } from '../services/api';
+import { getContract, transferOwnership as apiTransferOwnership } from '../services/api';
 import { ethers } from 'ethers';
 import axios from 'axios';
 
@@ -85,6 +85,17 @@ export default function OwnershipTransfer({ user }) {
         gasUsed: Number(receipt.gasUsed)
       });
       toast.success('Ownership transferred!');
+
+      // Also save to backend database for Verification timeline to work
+      try {
+        await apiTransferOwnership({
+          productId: productId.trim(),
+          newOwnerAddress: selectedAddress,
+          newOwnerName: query
+        });
+      } catch (dbErr) {
+        console.warn('Backend sync warning:', dbErr.message);
+      }
     } catch (err) {
       toast.dismiss('tx');
       toast.error(err.reason || err.message || 'Transfer failed');

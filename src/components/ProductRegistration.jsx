@@ -52,8 +52,13 @@ export default function ProductRegistration({ user }) {
       
       toast.success('Product registered on blockchain!');
       
-      // 4. Notify Backend for Indexing (Optional - Indexer will catch it anyway)
-      // await apiRegisterProduct({ ...form, txHash: receipt.hash });
+      // 4. ALSO save to backend database for Verification to work
+      try {
+        await apiRegisterProduct({ productId: form.productId, brand: form.brand, city: form.city });
+      } catch (dbErr) {
+        // Non-critical — on-chain already succeeded. Log silently.
+        console.warn('Backend sync warning:', dbErr.message);
+      }
 
     } catch (err) {
       toast.dismiss('tx');
