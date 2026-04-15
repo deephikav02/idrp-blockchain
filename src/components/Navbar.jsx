@@ -11,21 +11,50 @@ export default function Navbar({ activeSection, user, setUser }) {
   const [walletAddress, setWalletAddress] = useState(null);
   const [isDevMode, setIsDevMode] = useState(false);
 
+  // Auto-reconnect if MetaMask was already connected previously
+  useEffect(() => {
+    const tryAutoConnect = async () => {
+      if (window.ethereum) {
+        try {
+          const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+          if (accounts && accounts.length > 0) {
+            setWalletAddress(accounts[0]);
+            setIsDevMode(false);
+          }
+        } catch (_) {}
+      }
+    };
+    tryAutoConnect();
+  }, []);
+
   const connectWallet = async () => {
     try {
       if (!isMetaMaskInstalled()) {
         // Dev Mode Fallback
-        setWalletAddress('0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'); // Hardhat Account #0
+        setWalletAddress('0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266');
         setIsDevMode(true);
         toast.success('Connected to Local Dev Wallet!');
         return;
       }
+      toast.loading('Opening MetaMask...', { id: 'wallet' });
       const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-      setWalletAddress(accounts[0]);
-      setIsDevMode(false);
-      toast.success('MetaMask connected!');
+      toast.dismiss('wallet');
+      if (accounts && accounts.length > 0) {
+        setWalletAddress(accounts[0]);
+        setIsDevMode(false);
+        toast.success('MetaMask connected!');
+      } else {
+        toast.error('No accounts returned. Check MetaMask.');
+      }
     } catch (err) {
-      toast.error('Failed to connect wallet');
+      toast.dismiss('wallet');
+      if (err.code === 4001) {
+        toast.error('Connection rejected. Please approve in MetaMask popup.');
+      } else if (err.code === -32002) {
+        toast.error('MetaMask is already open. Check the extension icon in your browser!');
+      } else {
+        toast.error('Failed to connect wallet: ' + (err.message || 'Unknown error'));
+      }
     }
   };
 
