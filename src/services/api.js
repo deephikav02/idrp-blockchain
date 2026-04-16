@@ -59,7 +59,7 @@ export const listProducts = (page = 1, limit = 20) => api.get(`/products?page=${
 // Repairs
 export const logRepair = (data) => api.post('/repairs/log', data);
 export const getRepairs = (productId) => api.get(`/repairs/${productId}`);
-export const verifyRepair = (repairId) => api.patch(`/repairs/verify/${repairId}`);
+export const verifyRepair = (repairId, data) => api.patch(`/repairs/verify/${repairId}`, data);
 
 // Transfers
 export const transferOwnership = (data) => api.post('/transfers/execute', data);

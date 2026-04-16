@@ -36,12 +36,13 @@ export async function startIndexer() {
     });
 
     // 2. Listen for Repair Logs
-    contract.on('RepairLogged', (productId, repairer, repairCenter, partReplaced, ipfsHash, timestamp, customerReported, blockNumber) => {
-      console.log(`📥 Indexing Repair for: ${productId}`);
+    contract.on('RepairLogged', (productId, repairIndex, repairer, repairCenter, partReplaced, ipfsHash, timestamp, customerReported, blockNumber) => {
+      console.log(`📥 Indexing Repair for: ${productId} [Index: ${repairIndex}]`);
       try {
+        const status = customerReported ? 'self-reported' : 'verified';
         db.prepare(`
-          INSERT INTO repairs (product_id, repair_center, part_replaced, description, ipfs_hash, repairer_address, repaired_at, customer_reported)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO repairs (product_id, repair_center, part_replaced, description, ipfs_hash, repairer_address, repaired_at, customer_reported, blockchain_index, status)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
           productId,
           repairCenter,
@@ -50,10 +51,26 @@ export async function startIndexer() {
           ipfsHash,
           repairer,
           new Date(Number(timestamp) * 1000).toISOString(),
-          customerReported ? 1 : 0
+          customerReported ? 1 : 0,
+          Number(repairIndex),
+          status
         );
       } catch (err) {
         console.error('Indexing Error (Repair):', err.message);
+      }
+    });
+
+    // 2b. Listen for Repair Verification
+    contract.on('RepairVerified', (productId, repairIndex, verifier, timestamp) => {
+      console.log(`✅ Indexing Repair Verification: ${productId} [Index: ${repairIndex}]`);
+      try {
+        db.prepare(`
+          UPDATE repairs 
+          SET status = 'verified', repairer_address = ? 
+          WHERE product_id = ? AND blockchain_index = ?
+        `).run(verifier, productId, Number(repairIndex));
+      } catch (err) {
+        console.error('Indexing Error (Verification):', err.message);
       }
     });
 

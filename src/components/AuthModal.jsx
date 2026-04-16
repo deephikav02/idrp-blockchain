@@ -32,7 +32,9 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
         setIsLogin(true);
       }
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Authentication failed');
+      console.error('Auth Debug:', err);
+      const url = err.config?.url || 'unknown';
+      toast.error(`Error: ${err.response?.data?.error || err.message} (Target: ${url})`);
     } finally {
       setLoading(false);
     }

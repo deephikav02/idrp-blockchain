@@ -45,6 +45,7 @@ export function initDatabase() {
       block_number INTEGER,
       status TEXT DEFAULT 'verified',
       customer_reported INTEGER DEFAULT 0,
+      blockchain_index INTEGER,
       bill_image_hash TEXT,
       FOREIGN KEY (product_id) REFERENCES products(product_id)
     );
@@ -94,7 +95,7 @@ export function initDatabase() {
       const hash = bcrypt.hashSync(u.pass, 10);
       insert.run(u.email, hash, u.name, u.role, u.addr);
     }
-    console.log('✅ Seeded 3 users.');
+    console.log(`✅ Seeded ${seedUsers.length} users.`);
   }
 
   console.log('✅ Database initialized at', DB_PATH);

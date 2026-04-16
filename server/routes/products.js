@@ -75,6 +75,7 @@ function buildLifecycle(product, repairs, transfers) {
   repairs.forEach(repair => {
     events.push({
       type: 'repair', title: repair.customer_reported ? 'Customer-Reported Repair' : 'Verified Repair',
+      id: repair.id, blockchainIndex: repair.blockchain_index, // Add these
       description: `${repair.part_replaced} at ${repair.repair_center}`, details: repair.description,
       timestamp: repair.repaired_at, txHash: repair.tx_hash, blockNumber: repair.block_number,
       ipfsHash: repair.ipfs_hash, icon: 'wrench', status: repair.status, customerReported: repair.customer_reported === 1

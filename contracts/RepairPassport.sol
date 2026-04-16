@@ -79,6 +79,7 @@ contract RepairPassport {
     
     event RepairLogged(
         string indexed productId,
+        uint256 repairIndex,
         address indexed repairer,
         string repairCenter,
         string partReplaced,
@@ -97,6 +98,13 @@ contract RepairPassport {
     );
     
     event RoleAssigned(address indexed user, Role role);
+    
+    event RepairVerified(
+        string indexed productId,
+        uint256 repairIndex,
+        address indexed verifier,
+        uint256 timestamp
+    );
     
     // ═══════════════════════════════════════════
     // MODIFIERS
@@ -229,6 +237,7 @@ contract RepairPassport {
         
         emit RepairLogged(
             _productId,
+            repairs[_productId].length - 1,
             msg.sender,
             _repairCenter,
             _partReplaced,
@@ -250,6 +259,7 @@ contract RepairPassport {
             "Repair is not self-reported"
         );
         repairs[_productId][_repairIndex].status = RepairStatus.Verified;
+        emit RepairVerified(_productId, _repairIndex, msg.sender, block.timestamp);
     }
     
     // ═══════════════════════════════════════════

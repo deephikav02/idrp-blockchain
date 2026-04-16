@@ -79,25 +79,23 @@ router.get('/:productId', (req, res) => {
 
 router.patch('/verify/:repairId', requireRepairCenter, async (req, res) => {
   try {
+    const { txHash } = req.body;
     const db = getDb();
     const repair = db.prepare('SELECT * FROM repairs WHERE id = ?').get(req.params.repairId);
     if (!repair) return res.status(404).json({ error: 'Repair record not found' });
-    if (repair.status !== 'self-reported') return res.status(400).json({ error: 'This repair is already verified' });
     
-    const receipt = await simulateTransaction('verifyRepair', { productId: repair.product_id, repairIndex: repair.id });
-    
-    db.prepare('UPDATE repairs SET status = ?, tx_hash = ?, block_number = ? WHERE id = ?')
-      .run('verified', receipt.transactionHash, receipt.blockNumber, req.params.repairId);
+    // Optimistic update
+    db.prepare('UPDATE repairs SET status = ?, tx_hash = ? WHERE id = ?')
+      .run('verified', txHash || 'pending-index', req.params.repairId);
     
     res.json({
-      success: true, message: 'Repair verified successfully',
-      data: {
-        repairId: repair.id, productId: repair.product_id, previousStatus: 'self-reported',
-        newStatus: 'verified', transactionHash: receipt.transactionHash, blockNumber: receipt.blockNumber
-      }
+      success: true, 
+      message: 'Repair verification recorded. Blockchain indexer will finalize status.',
+      data: { repairId: repair.id, status: 'verified', txHash }
     });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to verify repair' });
+    console.error('Verify error:', error);
+    res.status(500).json({ error: 'Failed to record verification' });
   }
 });
 

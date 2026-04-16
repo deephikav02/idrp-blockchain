@@ -39,6 +39,34 @@ export default function ProductVerification() {
     toast.success('Copied!');
   };
 
+  const handleVerifyRepair = async (event) => {
+    if (!event.id) return;
+    
+    setLoading(true);
+    try {
+      const { verifyRepair, getContract } = await import('../services/api');
+      const contract = await getContract(true);
+      
+      toast.loading('Signing verification...', { id: 'verify-tx' });
+      const tx = await contract.verifyRepair(data.product.product_id, event.blockchainIndex);
+      
+      toast.loading('Mining verification...', { id: 'verify-tx' });
+      await tx.wait();
+      toast.dismiss('verify-tx');
+      
+      // Update backend
+      await verifyRepair(event.id, { txHash: tx.hash });
+      
+      toast.success('Repair verified on blockchain!');
+      handleVerify({ preventDefault: () => {} }); // Refresh data
+    } catch (err) {
+      toast.dismiss('verify-tx');
+      toast.error(err.reason || err.message || 'Verification failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getIcon = (type) => {
     switch (type) {
       case 'registration': return <Package size={18} />;
@@ -177,6 +205,20 @@ export default function ProductVerification() {
                           <span style={{ color: 'var(--text-muted)', marginRight: '4px' }}>IPFS:</span>
                           <span className="hash-text">{event.ipfsHash}</span>
                           <button className="copy-btn" onClick={() => copyHash(event.ipfsHash)}><Copy size={12} /></button>
+                        </div>
+                      )}
+
+                      {/* Verify Button for Service Centers */}
+                      {event.type === 'repair' && event.status === 'self-reported' && user?.role === 'RepairCenter' && (
+                        <div style={{ marginTop: '12px' }}>
+                          <button 
+                            className="btn btn-primary" 
+                            style={{ padding: '6px 14px', fontSize: '0.8rem' }}
+                            onClick={() => handleVerifyRepair(event)}
+                            disabled={loading}
+                          >
+                            <CheckCircle size={14} /> Accept & Verify Repair
+                          </button>
                         </div>
                       )}
                     </div>
